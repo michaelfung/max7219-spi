@@ -1,0 +1,25 @@
+author: Pim van Pelt <pim@google.com>
+type: lib
+description: Mongoose OS library for MAX7219
+version: 1.0
+
+sources:
+  - src
+
+includes:
+  - include
+
+config_schema:
+  - ["max7219", "o", {title: "max7219 settings"}]
+  - ["max7219.cs_index", "i", -1, {title: "SPI cs index, 0, 1, or 2"}]
+
+libs:
+  - origin: https://github.com/mongoose-os-libs/spi
+
+tags:
+  - c
+  - i2c
+  - hw
+  - docs:drivers:MAX7219 I2C
+
+manifest_version: 2017-09-29
