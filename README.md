@@ -12,6 +12,10 @@ After initialization, bytes can be written to so called `digits`, which are
 the individual lines of an 8x8 LED display, or the actual digits of a 7-segment
 display.
 
+***NOTE***: The MAX7219 is a 5V device, and as such level shifters are
+necessary between the `MOSI`, `SCLK` and `CS` pins of the MCU and the pins
+on the chip(s). It may work without, but it's not recommended!
+
 ## API Description
 
 Create the object with `mgos_max7219_create()`, and if there are multiple
