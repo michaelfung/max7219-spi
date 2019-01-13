@@ -26,9 +26,9 @@ struct mgos_max7219;
 
 /*
  * Initialize a MAX7219 on the SPI bus `spi` using the chipselect specified in
- * `cs_index` parameter (see `spi.cs*_gpio`). The device will be polled
- * for validity, upon success a new `struct mgos_max7219` is allocated and
- * returned. If the device could not be found, NULL is returned.
+ * `cs_index` parameter (see `spi.cs*_gpio`). Upon success a new
+ * `struct mgos_max7219` is  allocated and returned.
+ * If the device could not be found or initialized, NULL is returned.
  */
 struct mgos_max7219 *mgos_max7219_create(struct mgos_spi *spi, uint8_t cs_index);
 
@@ -41,27 +41,55 @@ struct mgos_max7219 *mgos_max7219_create(struct mgos_spi *spi, uint8_t cs_index)
 bool mgos_max7219_destroy(struct mgos_max7219 **dev);
 
 /*
- * Get/Set display intensity (brightness) as a value from 0..15.
+ * Set the number of devices in the daisychain (1 or more).
  * Returns true on success or false on failure.
  */
-bool mgos_max7219_get_intensity(struct mgos_max7219 *dev, uint8_t *intensity);
+bool mgos_max7219_set_num_devices(struct mgos_max7219 *dev, uint8_t num_devices);
+
+/*
+ * Set display intensity (brightness) as a value from 0..15.
+ * Returns true on success or false on failure.
+ */
 bool mgos_max7219_set_intensity(struct mgos_max7219 *dev, uint8_t intensity);
 
-/*
- * Get/Set display digit at position `digit` 0..7, with a `value` from 0..255.
+
+/* Set display mode, either 'raw' or 'digit':
+ * - codeB_enabled: set 'false' for 'raw', or 'true' to enable 7-segment digits.
  * Returns true on success or false on failure.
  */
-bool mgos_max7219_set_raw(struct mgos_max7219 *dev, uint8_t digit, uint8_t value);
-bool mgos_max7219_get_raw(struct mgos_max7219 *dev, uint8_t digit, uint8_t *value);
+bool mgos_max7219_set_mode(struct mgos_max7219 *dev, bool codeB_enabled);
 
 /*
- * Get/Set display digit at position `digit` 0..7, with an actual 7-segment
- * display digit, with values from 0-9, 10='-', 11='E', 12='H', 13='L',
- * 14='P', 15=' ', called Code B decoding.
+ * Set display digit at position `digit` with a `value`
+ * - deviceno: device to adddress, between 0 and num_devices-1;
+ * - digit: must be between [0, 7]
+ * - value: can be between [0, 255]
  * Returns true on success or false on failure.
  */
-bool mgos_max7219_set_digit(struct mgos_max7219 *dev, uint8_t digit, uint8_t value);
-bool mgos_max7219_get_digit(struct mgos_max7219 *dev, uint8_t digit, uint8_t *value);
+bool mgos_max7219_write_raw(struct mgos_max7219 *dev, uint8_t deviceno, uint8_t digit, uint8_t value);
+
+/*
+ * Set display digit at position `digit` with an 7-segment character `value`
+ * - deviceno: device to adddress, between 0 and num_devices-1;
+ * - digit: must be between [0, 7]
+ * - value: must be between [0, 15]:
+ *          0-9 for numbers, , 10='-', 11='E', 12='H', 13='L', 14='P', 15=' '
+ *          called Code B decoding.
+ * Returns true on success or false on failure.
+ */
+bool mgos_max7219_write_digit(struct mgos_max7219 *dev, uint8_t deviceno, uint8_t digit, uint8_t value);
+
+/*
+ * Write a line of values at position `digit` across all connected devices.
+ * - digit: must be between [0, 7]
+ * - value: An array of exactly num_devices bytes.
+ *
+ * Note: If the device is in mode codeB, the values should be between [0, 15].
+ *
+ * Returns true on success or false on failure.
+ */
+bool mgos_max7219_write_line(struct mgos_max7219 *dev, uint8_t digit, uint8_t *value);
+
 
 #ifdef __cplusplus
 }

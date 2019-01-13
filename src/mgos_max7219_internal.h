@@ -21,6 +21,8 @@
 extern "C" {
 #endif
 
+#define MGOS_MAX7219_MAX_DEVICES        (16)
+
 // Registers
 #define MGOS_MAX7219_REG_NOOP           (0x0)
 #define MGOS_MAX7219_REG_DIGIT0         (0x1)
@@ -42,7 +44,8 @@ struct mgos_max7219 {
   uint8_t          cs_index;
   uint8_t          spi_mode;
   uint32_t         spi_freq;
-  uint8_t          codeB_enabled; // Set to 0 for raw, and 1 for codeB decoding
+  bool             codeB_enabled; // Set to 0 for raw, and 1 for codeB decoding
+  uint8_t          num_devices;
 };
 
 /* Mongoose OS initializer */

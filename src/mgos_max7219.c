@@ -16,36 +16,22 @@
 
 #include "mgos_max7219_internal.h"
 
-static bool mgos_max7219_read_reg_b(struct mgos_max7219 *dev, uint8_t reg, uint8_t *val) {
-  uint8_t tx_data = 0x80 | reg;
-  uint8_t rx_data;
-
-  if (!dev || !val) {
-    return false;
-  }
-
-  struct mgos_spi_txn txn = {
-    .cs   = dev->cs_index,
-    .mode = dev->spi_mode,
-    .freq = dev->spi_freq,
-  };
-  txn.hd.tx_len    = 1;
-  txn.hd.tx_data   = &tx_data;
-  txn.hd.dummy_len = 0;
-  txn.hd.rx_len    = 1;
-  txn.hd.rx_data   = &rx_data;
-  if (!mgos_spi_run_txn(dev->spi, false, &txn)) {
-    return false;
-  }
-  *val = rx_data;
-  return true;
-}
-
-static bool mgos_max7219_write_reg_b(struct mgos_max7219 *dev, uint8_t reg, uint8_t val) {
-  uint8_t tx_data[2] = { reg, val };
+// Set a reg/val pair in all connected devices.
+static bool mgos_max7219_write_all(struct mgos_max7219 *dev, uint8_t reg, uint8_t val) {
+  uint8_t *tx_data;
+  uint8_t  i;
+  bool     ret;
 
   if (!dev) {
     return false;
+  }
+
+  if (!(tx_data = malloc(2 * dev->num_devices))) {
+    return false;
+  }
+  for (i = 0; i < dev->num_devices; i++) {
+    tx_data[i * 2]     = reg;
+    tx_data[i * 2 + 1] = val;
   }
 
   struct mgos_spi_txn txn = {
@@ -54,26 +40,102 @@ static bool mgos_max7219_write_reg_b(struct mgos_max7219 *dev, uint8_t reg, uint
     .freq = dev->spi_freq,
   };
   txn.hd.tx_data   = tx_data;
-  txn.hd.tx_len    = sizeof(tx_data);
+  txn.hd.tx_len    = 2 * dev->num_devices;
   txn.hd.dummy_len = 0;
   txn.hd.rx_len    = 0;
-  return mgos_spi_run_txn(dev->spi, false, &txn);
+
+  ret = mgos_spi_run_txn(dev->spi, false, &txn);
+  free(tx_data);
+  return ret;
+}
+
+// Set a reg/val pair in the device identified by deviceno (0 is the first device)
+static bool mgos_max7219_write_one(struct mgos_max7219 *dev, uint8_t deviceno, uint8_t reg, uint8_t val) {
+  uint8_t *tx_data;
+  uint8_t  i;
+  bool     ret;
+
+  if (!dev) {
+    return false;
+  }
+  if (!(tx_data = malloc(2 * dev->num_devices))) {
+    return false;
+  }
+
+  // Send NOOP to all devices except the deviceno we're interested in
+  for (i = 0; i < dev->num_devices; i++) {
+    if (deviceno == i) {
+      tx_data[(dev->num_devices - i - 1) * 2]     = reg;
+      tx_data[(dev->num_devices - i - 1) * 2 + 1] = val;
+    } else {
+      tx_data[(dev->num_devices - i - 1) * 2]     = MGOS_MAX7219_REG_NOOP;
+      tx_data[(dev->num_devices - i - 1) * 2 + 1] = 0x00;
+    }
+  }
+
+  struct mgos_spi_txn txn = {
+    .cs   = dev->cs_index,
+    .mode = dev->spi_mode,
+    .freq = dev->spi_freq,
+  };
+  txn.hd.tx_data   = tx_data;
+  txn.hd.tx_len    = 2 * dev->num_devices;
+  txn.hd.dummy_len = 0;
+  txn.hd.rx_len    = 0;
+  ret = mgos_spi_run_txn(dev->spi, false, &txn);
+  free(tx_data);
+  return ret;
+}
+
+// Set a reg with N values (one for each device) -- The length of `val` must be `dev->num_devices`
+static bool mgos_max7219_write(struct mgos_max7219 *dev, uint8_t reg, uint8_t *val) {
+  uint8_t *tx_data;
+  uint8_t  i;
+  bool     ret;
+
+  if (!dev) {
+    return false;
+  }
+  if (!(tx_data = malloc(2 * dev->num_devices))) {
+    return false;
+  }
+
+  // Send NOOP to all devices before the deviceno we're interested in
+  for (i = 0; i < dev->num_devices; i++) {
+    tx_data[i * 2]     = reg;
+    tx_data[i * 2 + 1] = val[dev->num_devices - i - 1];
+  }
+
+  struct mgos_spi_txn txn = {
+    .cs   = dev->cs_index,
+    .mode = dev->spi_mode,
+    .freq = dev->spi_freq,
+  };
+  txn.hd.tx_data   = tx_data;
+  txn.hd.tx_len    = 2 * dev->num_devices;
+  txn.hd.dummy_len = 0;
+  txn.hd.rx_len    = 0;
+  ret = mgos_spi_run_txn(dev->spi, false, &txn);
+  free(tx_data);
+  return ret;
+}
+
+bool mgos_max7219_set_mode(struct mgos_max7219 *dev, bool codeB_enabled) {
+  dev->codeB_enabled = codeB_enabled;
+  return mgos_max7219_write_all(dev, MGOS_MAX7219_REG_DECODEMODE, codeB_enabled);
 }
 
 static bool mgos_max7219_reset(struct mgos_max7219 *dev) {
-  if (!mgos_max7219_write_reg_b(dev, MGOS_MAX7219_REG_SCANLIMIT, 7)) {
+  if (!mgos_max7219_write_all(dev, MGOS_MAX7219_REG_SCANLIMIT, 7)) {
     return false;
   }
-  if (!mgos_max7219_write_reg_b(dev, MGOS_MAX7219_REG_DECODEMODE, dev->codeB_enabled)) {
-    return false;
-  }
-  if (!mgos_max7219_write_reg_b(dev, MGOS_MAX7219_REG_DISPLAYTEST, 0)) {
+  if (!mgos_max7219_write_all(dev, MGOS_MAX7219_REG_DISPLAYTEST, 0)) {
     return false;
   }
   if (!mgos_max7219_set_intensity(dev, 5)) {
     return false;
   }
-  if (!mgos_max7219_write_reg_b(dev, MGOS_MAX7219_REG_SHUTDOWN, 1)) {
+  if (!mgos_max7219_write_all(dev, MGOS_MAX7219_REG_SHUTDOWN, 1)) {
     return false;
   }
 
@@ -93,18 +155,27 @@ struct mgos_max7219 *mgos_max7219_create(struct mgos_spi *spi, uint8_t cs_index)
   }
 
   memset(dev, 0, sizeof(struct mgos_max7219));
-  dev->spi      = spi;
-  dev->cs_index = cs_index;
-  dev->spi_mode = 0;
-  dev->spi_freq = 1e6;
+  dev->spi         = spi;
+  dev->cs_index    = cs_index;
+  dev->spi_mode    = 0;
+  dev->spi_freq    = 1e6;
+  dev->num_devices = 1;
 
   if (!mgos_max7219_reset(dev)) {
     LOG(LL_INFO, ("Could not reset MAX7219 at SPI cs=%u freq=%u mode=%u", dev->cs_index, dev->spi_freq, dev->spi_mode));
     free(dev);
     return NULL;
   }
-  LOG(LL_INFO, ("MAX7219 initialized at SPI cs=%u freq=%u mode=%u", dev->cs_index, dev->spi_freq, dev->spi_mode));
+  LOG(LL_INFO, ("%u MAX7219 devices initialized at SPI cs=%u freq=%u mode=%u", dev->num_devices, dev->cs_index, dev->spi_freq, dev->spi_mode));
   return dev;
+}
+
+bool mgos_max7219_set_num_devices(struct mgos_max7219 *dev, uint8_t num_devices) {
+  if (!dev || num_devices > MGOS_MAX7219_MAX_DEVICES) {
+    return false;
+  }
+  dev->num_devices = num_devices;
+  return true;
 }
 
 bool mgos_max7219_set_intensity(struct mgos_max7219 *dev, uint8_t intensity) {
@@ -112,71 +183,30 @@ bool mgos_max7219_set_intensity(struct mgos_max7219 *dev, uint8_t intensity) {
     return false;
   }
 
-  return mgos_max7219_write_reg_b(dev, MGOS_MAX7219_REG_INTENSITY, intensity & 0x0f);
+  return mgos_max7219_write_all(dev, MGOS_MAX7219_REG_INTENSITY, intensity & 0x0f);
 }
 
-bool mgos_max7219_get_intensity(struct mgos_max7219 *dev, uint8_t *intensity) {
-  if (!dev || !intensity) {
+bool mgos_max7219_write_raw(struct mgos_max7219 *dev, uint8_t deviceno, uint8_t digit, uint8_t value) {
+  if (!dev || deviceno >= dev->num_devices || digit >= 8 || dev->codeB_enabled) {
     return false;
   }
 
-  return mgos_max7219_read_reg_b(dev, MGOS_MAX7219_REG_INTENSITY, intensity);
+  return mgos_max7219_write_one(dev, deviceno, MGOS_MAX7219_REG_DIGIT0 + digit, value);
 }
 
-bool mgos_max7219_set_raw(struct mgos_max7219 *dev, uint8_t digit, uint8_t value) {
-  if (!dev || digit > 7) {
+bool mgos_max7219_write_digit(struct mgos_max7219 *dev, uint8_t deviceno, uint8_t digit, uint8_t value) {
+  if (!dev || digit >= 8 || value >= 16 || deviceno >= dev->num_devices || !dev->codeB_enabled) {
     return false;
   }
 
-  // We are in codeB for this digit, set to raw (by clearing the bit)
-  if (dev->codeB_enabled & (1 << digit)) {
-    dev->codeB_enabled &= ~(1 << digit);
-    if (!mgos_max7219_write_reg_b(dev, MGOS_MAX7219_REG_DECODEMODE, dev->codeB_enabled)) {
-      return false;
-    }
-  }
-  return mgos_max7219_write_reg_b(dev, MGOS_MAX7219_REG_DIGIT0 + digit, value);
+  return mgos_max7219_write_one(dev, deviceno, MGOS_MAX7219_REG_DIGIT0 + digit, value);
 }
 
-bool mgos_max7219_get_raw(struct mgos_max7219 *dev, uint8_t digit, uint8_t *value) {
-  if (!dev || digit > 7 || !value) {
+bool mgos_max7219_write_line(struct mgos_max7219 *dev, uint8_t digit, uint8_t *value) {
+  if (!dev || digit >= 8 || !value) {
     return false;
   }
-
-  // Do not return raw for digits in codeB
-  if (dev->codeB_enabled & (1 << digit)) {
-    return false;
-  }
-
-  return mgos_max7219_read_reg_b(dev, MGOS_MAX7219_REG_DIGIT0 + digit, value);
-}
-
-bool mgos_max7219_set_digit(struct mgos_max7219 *dev, uint8_t digit, uint8_t value) {
-  if (!dev || digit > 7 || value > 15) {
-    return false;
-  }
-
-  // We are not in codeB for this digit, set it.
-  if (!(dev->codeB_enabled & (1 << digit))) {
-    dev->codeB_enabled |= 1 << digit;
-    if (!mgos_max7219_write_reg_b(dev, MGOS_MAX7219_REG_DECODEMODE, dev->codeB_enabled)) {
-      return false;
-    }
-  }
-  return mgos_max7219_write_reg_b(dev, MGOS_MAX7219_REG_DIGIT0 + digit, value);
-}
-
-bool mgos_max7219_get_digit(struct mgos_max7219 *dev, uint8_t digit, uint8_t *value) {
-  if (!dev || digit > 7 || !value) {
-    return false;
-  }
-
-  // Do not return raw for digits in raw mode
-  if (!(dev->codeB_enabled & (1 << digit))) {
-    return false;
-  }
-
-  return mgos_max7219_read_reg_b(dev, MGOS_MAX7219_REG_DIGIT0 + digit, value);
+  return mgos_max7219_write(dev, MGOS_MAX7219_REG_DIGIT0 + digit, value);
 }
 
 bool mgos_max7219_destroy(struct mgos_max7219 **dev) {
