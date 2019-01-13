@@ -90,7 +90,7 @@ enum mgos_app_init_result mgos_app_init(void) {
 
   if (!(d = mgos_max7219_create(mgos_spi_get_global(), mgos_sys_config_get_max7219_cs_index())) {
     LOG(LL_ERROR, ("Could not create MAX7219 display"));
-    return false;
+    return MGOS_APP_INIT_ERROR;
   }
   mgos_max7219_set_num_devices(d, 2);
   mgos_set_timer(100, true, timer_cb, d);
