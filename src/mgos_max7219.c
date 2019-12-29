@@ -142,7 +142,7 @@ static bool mgos_max7219_reset(struct mgos_max7219 *dev) {
   return true;
 }
 
-struct mgos_max7219 *mgos_max7219_create(struct mgos_spi *spi, uint8_t cs_index) {
+struct mgos_max7219 *mgos_max7219_create(struct mgos_spi *spi, uint8_t cs_index, uint8_t num_devices) {
   struct mgos_max7219 *dev = NULL;
 
   if (!spi) {
@@ -159,7 +159,7 @@ struct mgos_max7219 *mgos_max7219_create(struct mgos_spi *spi, uint8_t cs_index)
   dev->cs_index    = cs_index;
   dev->spi_mode    = 0;
   dev->spi_freq    = 1e6;
-  dev->num_devices = 1;
+  dev->num_devices = num_devices;
 
   if (!mgos_max7219_reset(dev)) {
     LOG(LL_INFO, ("Could not reset MAX7219 at SPI cs=%u freq=%u mode=%u", dev->cs_index, dev->spi_freq, dev->spi_mode));
