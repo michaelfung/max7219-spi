@@ -30,7 +30,7 @@ struct mgos_max7219;
  * `struct mgos_max7219` is  allocated and returned.
  * If the device could not be found or initialized, NULL is returned.
  */
-struct mgos_max7219 *mgos_max7219_create(struct mgos_spi *spi, uint8_t cs_index, uint8_t hum_devices);
+struct mgos_max7219 *mgos_max7219_create(struct mgos_spi *spi, uint8_t cs_index, uint8_t num_devices);
 
 /*
  * Destroy the data structure associated with a MAX7219 device. The reference
