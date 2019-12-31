@@ -166,7 +166,7 @@ struct mgos_max7219 *mgos_max7219_create(struct mgos_spi *spi, uint8_t cs_index,
     free(dev);
     return NULL;
   }
-  LOG(LL_INFO, ("%u MAX7219 devices initialized at SPI cs=%u freq=%u mode=%u", dev->num_devices, dev->cs_index, dev->spi_freq, dev->spi_mode));
+  LOG(LL_ERROR, ("%u MAX7219 devices initialized at SPI cs=%u freq=%u mode=%u", dev->num_devices, dev->cs_index, dev->spi_freq, dev->spi_mode));
   return dev;
 }
 
