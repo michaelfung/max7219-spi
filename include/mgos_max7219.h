@@ -90,7 +90,7 @@ bool mgos_max7219_write_digit(struct mgos_max7219 *dev, uint8_t deviceno, uint8_
  */
 bool mgos_max7219_write_line(struct mgos_max7219 *dev, uint8_t digit, uint8_t *value);
 
-static bool mgos_max7219_write_all(struct mgos_max7219 *dev, uint8_t reg, uint8_t val);
+bool mgos_max7219_write_all(struct mgos_max7219 *dev, uint8_t reg, uint8_t val);
 
 #ifdef __cplusplus
 }

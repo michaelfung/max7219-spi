@@ -17,7 +17,7 @@
 #include "mgos_max7219_internal.h"
 
 // Set a reg/val pair in all connected devices.
-static bool mgos_max7219_write_all(struct mgos_max7219 *dev, uint8_t reg, uint8_t val) {
+bool mgos_max7219_write_all(struct mgos_max7219 *dev, uint8_t reg, uint8_t val) {
   uint8_t *tx_data;
   uint8_t  i;
   bool     ret;
